@@ -1,0 +1,75 @@
+# .github/workflows/docs.yml
+name: Build and Deploy Sphinx Docs
+
+# Trigger on pushes to the main/master branch
+on:
+  push:
+    branches:
+      - main
+      - master
+      
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # Job 1: Run Unit Tests (Must pass to proceed)
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Unit Tests
+        # The '-m unittest' command executes the tests found in test_calculator.py
+        run: python -m unittest calculator/test_calculator.py
+        # If any test fails, this step fails, and the workflow terminates.
+
+  # Job 2: Build and Deploy Documentation
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: test # <--- Ensures this job only runs if the 'test' job succeeded
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install documentation dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Sphinx Build
+        # Builds the HTML output into the standard _site directory for Pages deployment
+        run: sphinx-build -b html docs _site
+
+      - name: Upload artifact
+        # Uploads the built documentation as a deployable artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        # Official GitHub action for deploying the artifact
+        uses: actions/deploy-pages@v4
